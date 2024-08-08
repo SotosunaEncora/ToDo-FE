@@ -28,6 +28,8 @@ const Todo = () => {
   const [filterText, setFilterText] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [sortAscendingPriority, setSortAscendingPriority] = useState(false);
+  const [sortAscendingDueDate, setSortAscendingDueDate] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(4);
   const [averageTime, setAverageTime] = useState('N/A');
@@ -41,24 +43,22 @@ const Todo = () => {
 
   const fetchTodos = useCallback(async () => {
     try {
-      if (!filterText && !filterPriority && !filterStatus) {
-        const response = await axios.get('/todos')
-        setTasks(response.data);
-      } else {
-        const response = await axios.get('/todos', {
-          params: {
-            text: filterText,
-            priority: filterPriority,
-            status: filterStatus,
-          }
-        });
-        setTasks(response.data);
-      }
+      console.log('fetching')
+      const response = await axios.get('/todos', {
+        params: {
+          text: filterText,
+          priority: filterPriority,
+          status: filterStatus,
+          ascendingPriority: sortAscendingPriority,
+          ascendingDueDate: sortAscendingDueDate
+        }
+      });
+      setTasks(response.data);
       
     } catch (error) {
       console.error('Error fetching todos', error);
     }
-  }, [filterText, filterPriority, filterStatus]);
+  }, [filterText, filterPriority, filterStatus, sortAscendingPriority, sortAscendingDueDate]);
 
   const calculateAverageTimes = useCallback(() => {
     let totalTime = 0; // in seconds
@@ -122,7 +122,7 @@ const Todo = () => {
   const handleEditTask = async (task) => {
     const updatedTask = {
       ...task,
-      dueDate: task.dueDate ? dayjs(task.dueDate).format('YYYY-MM-DDTHH:mm:ss') : null,
+      dueDate: task.dueDate ? dayjs(task.dueDate).format('YYYY-MM-DDTHH:mm:ss') : dayjs().format('YYYY-MM-DDTHH:mm:ss'),
     };
 
     try {
@@ -178,6 +178,18 @@ const Todo = () => {
 
   const handleFilterStatusChange = (event) => {
     setFilterStatus(event.target.value);
+  };
+
+  const handleSortPriorityChange = () => {
+    console.log(sortAscendingPriority);
+    console.log(sortAscendingDueDate);
+    setSortAscendingPriority(!sortAscendingPriority);
+  };
+
+  const handleSortDueDateChange = () => {
+    console.log(sortAscendingPriority);
+    console.log(sortAscendingDueDate);
+    setSortAscendingDueDate(!sortAscendingDueDate);
   };
 
   return (
@@ -240,8 +252,8 @@ const Todo = () => {
             <TableRow>
               <TableCell>Completed</TableCell>
               <TableCell>Task</TableCell>
-              <TableCell>Priority</TableCell>
-              <TableCell>Due Date</TableCell>
+              <TableCell><Button onClick={handleSortPriorityChange}>Priority</Button></TableCell>
+              <TableCell><Button onClick={handleSortDueDateChange}>Due Date</Button></TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
