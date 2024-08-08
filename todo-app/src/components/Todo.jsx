@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from '../axios';
 import {
   Container,
   TextField,
@@ -8,6 +9,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Checkbox,
   Typography,
@@ -16,40 +18,166 @@ import {
   FormControl,
   InputLabel,
   Paper,
-  TablePagination,
+  Box,
 } from '@mui/material';
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
+import TaskDialog from './TaskDialog';
 
-const Todo = ({ tasks, addTask, toggleComplete }) => {
-  const [input, setInput] = useState('');
-  const [priority, setPriority] = useState('');
-  const [dueDate, setDueDate] = useState(null);
+const Todo = () => {
+  const [tasks, setTasks] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage] = useState(4);
+  const [averageTime, setAverageTime] = useState('N/A');
+  const [averageTimeByPriority, setAverageTimeByPriority] = useState({
+    high: 'N/A',
+    medium: 'N/A',
+    low: 'N/A',
+  });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentTask, setCurrentTask] = useState({ text: '', priority: 'low', dueDate: null });
 
-  const handleAddTask = () => {
-    const defaultTask = {
-      text: input.trim() || '',
-      priority: priority || 'low',
-      dueDate: dueDate || dayjs(),
-      completed: false,
+  const fetchTodos = useCallback(async () => {
+    try {
+      if (!filterText && !filterPriority && !filterStatus) {
+        const response = await axios.get('/todos')
+        setTasks(response.data);
+      } else {
+        const response = await axios.get('/todos', {
+          params: {
+            text: filterText,
+            priority: filterPriority,
+            status: filterStatus,
+          }
+        });
+        setTasks(response.data);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching todos', error);
+    }
+  }, [filterText, filterPriority, filterStatus]);
+
+  const calculateAverageTimes = useCallback(() => {
+    let totalTime = 0; // in seconds
+    let totalTasks = 0;
+    const timeByPriority = {
+      high: { totalTime: 0, count: 0 },
+      medium: { totalTime: 0, count: 0 },
+      low: { totalTime: 0, count: 0 },
     };
 
-    addTask(defaultTask);
-    setInput('');
-    setPriority('');
-    setDueDate(null);
+    tasks.forEach((task) => {
+      if (task.completed && task.completedAt && task.createdAt) {
+        const completedAt = dayjs(task.completedAt);
+        const createdAt = dayjs(task.createdAt);
+        if (completedAt.isValid() && createdAt.isValid()) {
+          const timeTaken = completedAt.diff(createdAt, 'second');
+          totalTime += timeTaken;
+          totalTasks += 1;
+          timeByPriority[task.priority].totalTime += timeTaken;
+          timeByPriority[task.priority].count += 1;
+        }
+      }
+    });
+
+    const avgTime = totalTasks > 0 ? (totalTime / totalTasks / 60).toFixed(2) + ' minutes' : 'N/A';
+    setAverageTime(avgTime);
+
+    const avgTimeByPriority = {
+      high: timeByPriority.high.count > 0 ? (timeByPriority.high.totalTime / timeByPriority.high.count / 60).toFixed(2) + ' minutes' : 'N/A',
+      medium: timeByPriority.medium.count > 0 ? (timeByPriority.medium.totalTime / timeByPriority.medium.count / 60).toFixed(2) + ' minutes' : 'N/A',
+      low: timeByPriority.low.count > 0 ? (timeByPriority.low.totalTime / timeByPriority.low.count / 60).toFixed(2) + ' minutes' : 'N/A',
+    };
+    setAverageTimeByPriority(avgTimeByPriority);
+  }, [tasks]);
+
+  useEffect(() => {
+    fetchTodos();
+  }, [fetchTodos]);
+
+  useEffect(() => {
+    calculateAverageTimes();
+  }, [tasks, calculateAverageTimes]);
+
+  const handleAddTask = async (task) => {
+    const newTask = {
+      ...task,
+      dueDate: task.dueDate ? task.dueDate.format('YYYY-MM-DDTHH:mm:ss') : dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+      completed: false,
+      createdAt: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+      completedAt: null,
+    };
+
+    try {
+      await axios.post('/todos', newTask);
+      fetchTodos();
+    } catch (error) {
+      console.error('Error adding todo', error);
+    }
+  };
+
+  const handleEditTask = async (task) => {
+    const updatedTask = {
+      ...task,
+      dueDate: task.dueDate ? dayjs(task.dueDate).format('YYYY-MM-DDTHH:mm:ss') : null,
+    };
+
+    try {
+      await axios.put(`/todos/${task.id}`, updatedTask);
+      fetchTodos();
+    } catch (error) {
+      console.error('Error updating todo', error);
+    }
+  };
+
+  const handleToggleComplete = async (id, completed) => {
+    try {
+      const endpoint = completed ? `/todos/${id}/not-done` : `/todos/${id}/done`;
+      await axios.put(endpoint);
+      fetchTodos();
+    } catch (error) {
+      console.error('Error toggling todo status', error);
+    }
+  };
+
+  const handleDeleteTask = async (id) => {
+    try {
+      await axios.delete(`/todos/${id}`);
+      fetchTodos();
+    } catch (error) {
+      console.error('Error deleting todo', error);
+    }
   };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+  const openDialog = (task = { text: '', priority: 'low', dueDate: null }) => {
+    if (task.dueDate) {
+      task.dueDate = dayjs(task.dueDate);
+    }
+    setCurrentTask(task);
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
+
+  const handleFilterTextChange = (event) => {
+    setFilterText(event.target.value);
+  };
+
+  const handleFilterPriorityChange = (event) => {
+    setFilterPriority(event.target.value);
+  };
+
+  const handleFilterStatusChange = (event) => {
+    setFilterStatus(event.target.value);
   };
 
   return (
@@ -57,42 +185,55 @@ const Todo = ({ tasks, addTask, toggleComplete }) => {
       <Typography variant="h4" gutterBottom>
         To-Do List
       </Typography>
-      <div style={{ display: 'flex', marginBottom: '20px', alignItems: 'center', gap: '10px' }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleAddTask}
-        >
-          Add Task
-        </Button>
-        <TextField
-          label="Task"
-          variant="outlined"
-          fullWidth
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <FormControl variant="outlined" style={{ minWidth: 120 }}>
-          <InputLabel>Priority</InputLabel>
-          <Select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            label="Priority"
-          >
-            <MenuItem value="high">High</MenuItem>
-            <MenuItem value="medium">Medium</MenuItem>
-            <MenuItem value="low">Low</MenuItem>
-          </Select>
-        </FormControl>
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DatePicker
-            label="Due Date"
-            value={dueDate}
-            onChange={(newValue) => setDueDate(newValue)}
-            renderInput={(params) => <TextField {...params} />}
+      <Box component={Paper} padding={2} marginBottom={2}>
+        <Box marginBottom={2}>
+          <TextField
+            label="Filter by Name"
+            variant="outlined"
+            fullWidth
+            value={filterText}
+            onChange={handleFilterTextChange}
           />
-        </LocalizationProvider>
-      </div>
+        </Box>
+        <Box marginBottom={2}>
+          <FormControl variant="outlined" fullWidth>
+            <InputLabel>Priority</InputLabel>
+            <Select
+              label="Priority"
+              value={filterPriority}
+              onChange={handleFilterPriorityChange}
+            >
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+        <Box marginBottom={2}>
+          <FormControl variant="outlined" fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              label="Status"
+              value={filterStatus}
+              onChange={handleFilterStatusChange}
+            >
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="done">Done</MenuItem>
+              <MenuItem value="not_done">Not Done</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+        <Box display="flex" justifyContent="flex-end">
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => openDialog()}
+          >
+            Add Task
+          </Button>
+        </Box>
+      </Box>
       <TableContainer component={Paper} style={{ maxHeight: '50vh' }}>
         <Table stickyHeader>
           <TableHead>
@@ -101,21 +242,19 @@ const Todo = ({ tasks, addTask, toggleComplete }) => {
               <TableCell>Task</TableCell>
               <TableCell>Priority</TableCell>
               <TableCell>Due Date</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {tasks.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((task, index) => (
-              <TableRow key={index} onClick={() => toggleComplete(index)} style={{ cursor: 'pointer' }}>
+            {tasks.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((task) => (
+              <TableRow key={task.id} style={{ cursor: 'pointer' }}>
                 <TableCell>
                   <Checkbox
                     checked={task.completed}
                     tabIndex={-1}
                     disableRipple
-                    inputProps={{ 'aria-labelledby': index }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleComplete(index);
-                    }}
+                    inputProps={{ 'aria-labelledby': task.id }}
+                    onClick={() => handleToggleComplete(task.id, task.completed)}
                   />
                 </TableCell>
                 <TableCell>
@@ -125,7 +264,15 @@ const Todo = ({ tasks, addTask, toggleComplete }) => {
                   {task.priority}
                 </TableCell>
                 <TableCell>
-                  {task.dueDate ? task.dueDate.format('MM/DD/YYYY') : ''}
+                  {task.dueDate ? dayjs(task.dueDate).format('YYYY-MM-DD') : ''}
+                </TableCell>
+                <TableCell>
+                  <Button onClick={() => openDialog(task)}>
+                    Edit
+                  </Button>
+                  <Button onClick={() => handleDeleteTask(task.id)}>
+                    Delete
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -133,13 +280,31 @@ const Todo = ({ tasks, addTask, toggleComplete }) => {
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[5, 10, 15]}
+        rowsPerPageOptions={[4]}
         component="div"
         count={tasks.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+        <div>
+          <Typography variant="subtitle1">Average time to complete each task:</Typography>
+          <Typography variant="h6">{averageTime}</Typography>
+        </div>
+        <div>
+          <Typography variant="subtitle1">Average time by priority:</Typography>
+          <Typography variant="body1">High: {averageTimeByPriority.high}</Typography>
+          <Typography variant="body1">Medium: {averageTimeByPriority.medium}</Typography>
+          <Typography variant="body1">Low: {averageTimeByPriority.low}</Typography>
+        </div>
+      </div>
+      <TaskDialog
+        open={dialogOpen}
+        onClose={closeDialog}
+        onSave={currentTask.id ? handleEditTask : handleAddTask}
+        task={currentTask}
+        setTask={setCurrentTask}
       />
     </Container>
   );

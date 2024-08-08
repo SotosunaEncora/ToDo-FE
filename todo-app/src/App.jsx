@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Todo from './components/Todo.jsx';
 import './App.css';
+import dayjs from 'dayjs';
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -11,14 +12,19 @@ function App() {
 
   const handleToggleComplete = (index) => {
     const newTasks = tasks.map((task, idx) =>
-      idx === index ? { ...task, completed: !task.completed } : task
+      idx === index ? { ...task, completed: !task.completed, completedAt: task.completed ? null : dayjs() } : task
     );
     setTasks(newTasks);
   };
 
   return (
     <div className="App">
-      <Todo tasks={tasks} addTask={handleAddTask} toggleComplete={handleToggleComplete} />
+      <Todo
+        tasks={tasks}
+        setTasks={setTasks}
+        addTask={handleAddTask}
+        toggleComplete={handleToggleComplete}
+      />
     </div>
   );
 }
