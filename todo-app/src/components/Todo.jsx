@@ -223,8 +223,9 @@ const Todo = () => {
               <MenuItem value="not_done">Not Done</MenuItem>
             </Select>
           </FormControl>
-        </Box>
-        <Box display="flex" justifyContent="flex-end">
+        </Box> 
+      </Box>
+      <Box display="flex" justifyContent="flex-start" style={{marginBottom:'10px'}}>
           <Button
             variant="contained"
             color="primary"
@@ -233,7 +234,6 @@ const Todo = () => {
             Add Task
           </Button>
         </Box>
-      </Box>
       <TableContainer component={Paper} style={{ maxHeight: '50vh' }}>
         <Table stickyHeader>
           <TableHead>
