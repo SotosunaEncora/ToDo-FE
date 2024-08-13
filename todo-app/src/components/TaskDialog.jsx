@@ -48,6 +48,8 @@ const TaskDialog = ({
       <DialogContent>
         <Box display="flex" flexDirection="column" gap="16px">
           <TextField
+            id="task-input"
+            htmlFor="input"
             label="Task"
             value={task.text}
             onChange={handleChange('text')}

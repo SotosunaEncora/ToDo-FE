@@ -43,7 +43,6 @@ const Todo = () => {
 
   const fetchTodos = useCallback(async () => {
     try {
-      console.log('fetching')
       const response = await axios.get('/todos', {
         params: {
           text: filterText,
@@ -209,7 +208,7 @@ const Todo = () => {
         </Box>
         <Box marginBottom={2}>
           <FormControl variant="outlined" fullWidth>
-            <InputLabel>Priority</InputLabel>
+            <InputLabel label="Priority">Priority</InputLabel>
             <Select
               label="Priority"
               value={filterPriority}
