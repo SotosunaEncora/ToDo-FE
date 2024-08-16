@@ -62,9 +62,9 @@ const TaskDialog = ({
               onChange={handleChange('priority')}
               label="Priority"
             >
-              <MenuItem value="high">High</MenuItem>
-              <MenuItem value="medium">Medium</MenuItem>
-              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="High">High</MenuItem>
+              <MenuItem value="Medium">Medium</MenuItem>
+              <MenuItem value="Low">Low</MenuItem>
             </Select>
           </FormControl>
           <LocalizationProvider dateAdapter={AdapterDayjs}>

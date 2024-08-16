@@ -2,36 +2,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../axios';
 import {
   Container,
-  TextField,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  Checkbox,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Paper,
   Box,
 } from '@mui/material';
 import dayjs from 'dayjs';
 import TaskDialog from './TaskDialog';
+import FilterBox from './FilterBox';
+import MetricsBox from './MetricsBox';
+import TasksBox from './TasksBox';
 
 const Todo = () => {
   const [tasks, setTasks] = useState([]);
-  const [filterText, setFilterText] = useState('');
-  const [filterPriority, setFilterPriority] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [textFilter, setTextFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [sortAscendingPriority, setSortAscendingPriority] = useState(false);
   const [sortAscendingDueDate, setSortAscendingDueDate] = useState(false);
   const [page, setPage] = useState(0);
-  const [rowsPerPage] = useState(4);
+  const [rowsPerPage] = useState(10);
   const [averageTime, setAverageTime] = useState('N/A');
   const [averageTimeByPriority, setAverageTimeByPriority] = useState({
     high: 'N/A',
@@ -39,15 +28,15 @@ const Todo = () => {
     low: 'N/A',
   });
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState({ text: '', priority: 'low', dueDate: null });
+  const [currentTask, setCurrentTask] = useState({ text: '', priority: 'Low', dueDate: null });
 
   const fetchTodos = useCallback(async () => {
     try {
       const response = await axios.get('/todos', {
         params: {
-          text: filterText,
-          priority: filterPriority,
-          status: filterStatus,
+          text: textFilter,
+          priority: priorityFilter,
+          status: statusFilter,
           ascendingPriority: sortAscendingPriority,
           ascendingDueDate: sortAscendingDueDate
         }
@@ -57,15 +46,15 @@ const Todo = () => {
     } catch (error) {
       console.error('Error fetching todos', error);
     }
-  }, [filterText, filterPriority, filterStatus, sortAscendingPriority, sortAscendingDueDate]);
+  }, [textFilter, priorityFilter, statusFilter, sortAscendingPriority, sortAscendingDueDate]);
 
   const calculateAverageTimes = useCallback(() => {
     let totalTime = 0; // in seconds
     let totalTasks = 0;
     const timeByPriority = {
-      high: { totalTime: 0, count: 0 },
-      medium: { totalTime: 0, count: 0 },
-      low: { totalTime: 0, count: 0 },
+      High: { totalTime: 0, count: 0 },
+      Medium: { totalTime: 0, count: 0 },
+      Low: { totalTime: 0, count: 0 },
     };
 
     tasks.forEach((task) => {
@@ -86,9 +75,9 @@ const Todo = () => {
     setAverageTime(avgTime);
 
     const avgTimeByPriority = {
-      high: timeByPriority.high.count > 0 ? (timeByPriority.high.totalTime / timeByPriority.high.count / 60).toFixed(2) + ' minutes' : 'N/A',
-      medium: timeByPriority.medium.count > 0 ? (timeByPriority.medium.totalTime / timeByPriority.medium.count / 60).toFixed(2) + ' minutes' : 'N/A',
-      low: timeByPriority.low.count > 0 ? (timeByPriority.low.totalTime / timeByPriority.low.count / 60).toFixed(2) + ' minutes' : 'N/A',
+      High: timeByPriority.High.count > 0 ? (timeByPriority.High.totalTime / timeByPriority.High.count / 60).toFixed(2) + ' minutes' : 'N/A',
+      Medium: timeByPriority.Medium.count > 0 ? (timeByPriority.Medium.totalTime / timeByPriority.Medium.count / 60).toFixed(2) + ' minutes' : 'N/A',
+      Low: timeByPriority.Low.count > 0 ? (timeByPriority.Low.totalTime / timeByPriority.Low.count / 60).toFixed(2) + ' minutes' : 'N/A',
     };
     setAverageTimeByPriority(avgTimeByPriority);
   }, [tasks]);
@@ -155,7 +144,7 @@ const Todo = () => {
     setPage(newPage);
   };
 
-  const openDialog = (task = { text: '', priority: 'low', dueDate: null }) => {
+  const openDialog = (task = { text: '', priority: 'Low', dueDate: null }) => {
     if (task.dueDate) {
       task.dueDate = dayjs(task.dueDate);
     }
@@ -167,16 +156,16 @@ const Todo = () => {
     setDialogOpen(false);
   };
 
-  const handleFilterTextChange = (event) => {
-    setFilterText(event.target.value);
+  const handleTextFilterChange = (event) => {
+    setTextFilter(event.target.value);
   };
 
-  const handleFilterPriorityChange = (event) => {
-    setFilterPriority(event.target.value);
+  const handlePriorityFilterChange = (event) => {
+    setPriorityFilter(event.target.value);
   };
 
-  const handleFilterStatusChange = (event) => {
-    setFilterStatus(event.target.value);
+  const handleStatusFilterChange = (event) => {
+    setStatusFilter(event.target.value);
   };
 
   const handleSortPriorityChange = () => {
@@ -196,46 +185,14 @@ const Todo = () => {
       <Typography variant="h4" gutterBottom>
         To-Do List
       </Typography>
-      <Box component={Paper} padding={2} marginBottom={2}>
-        <Box marginBottom={2}>
-          <TextField
-            label="Filter by Name"
-            variant="outlined"
-            fullWidth
-            value={filterText}
-            onChange={handleFilterTextChange}
-          />
-        </Box>
-        <Box marginBottom={2}>
-          <FormControl variant="outlined" fullWidth>
-            <InputLabel label="Priority">Priority</InputLabel>
-            <Select
-              label="Priority"
-              value={filterPriority}
-              onChange={handleFilterPriorityChange}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="high">High</MenuItem>
-              <MenuItem value="medium">Medium</MenuItem>
-              <MenuItem value="low">Low</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-        <Box marginBottom={2}>
-          <FormControl variant="outlined" fullWidth>
-            <InputLabel>Status</InputLabel>
-            <Select
-              label="Status"
-              value={filterStatus}
-              onChange={handleFilterStatusChange}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="done">Done</MenuItem>
-              <MenuItem value="not_done">Not Done</MenuItem>
-            </Select>
-          </FormControl>
-        </Box> 
-      </Box>
+      <FilterBox 
+        textFilter = {textFilter}
+        priorityFilter = {priorityFilter}
+        statusFilter = {statusFilter}
+        handleTextFilterChange = {handleTextFilterChange}
+        handlePriorityFilterChange = {handlePriorityFilterChange}
+        handleStatusFilterChange = {handleStatusFilterChange}
+      />
       <Box display="flex" justifyContent="flex-start" style={{marginBottom:'10px'}}>
           <Button
             variant="contained"
@@ -245,71 +202,23 @@ const Todo = () => {
             Add Task
           </Button>
         </Box>
-      <TableContainer component={Paper} style={{ maxHeight: '50vh' }}>
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell>Completed</TableCell>
-              <TableCell>Task</TableCell>
-              <TableCell><Button onClick={handleSortPriorityChange}>Priority</Button></TableCell>
-              <TableCell><Button onClick={handleSortDueDateChange}>Due Date</Button></TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {tasks.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((task) => (
-              <TableRow key={task.id} style={{ cursor: 'pointer' }}>
-                <TableCell>
-                  <Checkbox
-                    checked={task.completed}
-                    tabIndex={-1}
-                    disableRipple
-                    inputProps={{ 'aria-labelledby': task.id }}
-                    onClick={() => handleToggleComplete(task.id, task.completed)}
-                  />
-                </TableCell>
-                <TableCell>
-                  {task.text}
-                </TableCell>
-                <TableCell>
-                  {task.priority}
-                </TableCell>
-                <TableCell>
-                  {task.dueDate ? dayjs(task.dueDate).format('YYYY-MM-DD') : ''}
-                </TableCell>
-                <TableCell>
-                  <Button onClick={() => openDialog(task)}>
-                    Edit
-                  </Button>
-                  <Button onClick={() => handleDeleteTask(task.id)}>
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <TablePagination
-        rowsPerPageOptions={[4]}
-        component="div"
-        count={tasks.length}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
+      <TasksBox
+        handleSortPriorityChange = {handleSortPriorityChange}
+        handleSortDueDateChange = {handleSortDueDateChange}
+        tasks = {tasks}
+        page = {page}
+        rowsPerPage = {rowsPerPage}
+        handleToggleComplete= {handleToggleComplete}
+        openDialog = {openDialog}
+        handleDeleteTask = {handleDeleteTask}
+        handleChangePage = {handleChangePage}
       />
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-        <div>
-          <Typography variant="subtitle1">Average time to complete each task:</Typography>
-          <Typography variant="h6">{averageTime}</Typography>
-        </div>
-        <div>
-          <Typography variant="subtitle1">Average time by priority:</Typography>
-          <Typography variant="body1">High: {averageTimeByPriority.high}</Typography>
-          <Typography variant="body1">Medium: {averageTimeByPriority.medium}</Typography>
-          <Typography variant="body1">Low: {averageTimeByPriority.low}</Typography>
-        </div>
-      </div>
+      
+      <MetricsBox 
+        averageTime = {averageTime}
+        averageTimeByPriority = {averageTimeByPriority}
+      />
+
       <TaskDialog
         open={dialogOpen}
         onClose={closeDialog}
